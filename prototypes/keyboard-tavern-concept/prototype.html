@@ -1,0 +1,451 @@
+<!--
+  PROTOTYPE - NOT FOR PRODUCTION
+  Question: 玩家真实键盘输入 → 啤酒风味 → 客人反应，这条链是否让人感到「有意义」并想继续？
+  Date: 2026-07-11
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>键盘酒馆 · 概念原型</title>
+<style>
+  :root{
+    --bg:#1d140d; --panel:#2a1d12; --panel2:#3a2a18; --cream:#f3e3c5; --amber:#d99a3e;
+    --line:#5a4128; --muted:#b89b73; --good:#8bc34a; --bad:#e06b4a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--cream);
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:18px 16px 60px}
+  h1{font-size:20px; margin:0 0 2px}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:14px}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:14px; margin-bottom:12px;
+  }
+  .row{display:flex; gap:12px; flex-wrap:wrap}
+  .col{flex:1; min-width:260px}
+
+  /* live stats */
+  .stats{display:flex; gap:8px; flex-wrap:wrap; font-size:13px}
+  .stat{background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:6px 10px}
+  .stat b{color:var(--amber)}
+  .stat .lab{color:var(--muted); margin-right:4px}
+
+  /* vat */
+  .vat-wrap{display:flex; gap:14px; align-items:center}
+  .vat{
+    width:84px; height:110px; border:3px solid var(--line); border-top:none;
+    border-radius:0 0 18px 18px; position:relative; overflow:hidden;
+    background:#1a110a;
+  }
+  .liquid{position:absolute; left:0; right:0; bottom:0; height:30%;
+    background:#f1c95b; transition:height .25s ease, background .25s ease;}
+  .stages{display:flex; gap:6px; flex:1}
+  .stage{flex:1; height:14px; border-radius:4px; background:var(--panel2); border:1px solid var(--line); overflow:hidden; position:relative}
+  .stage .fill{position:absolute; left:0; top:0; bottom:0; width:0%; background:var(--amber); transition:width .15s ease}
+  .stage .lbl{position:absolute; inset:0; text-align:center; font-size:10px; line-height:14px; color:var(--muted)}
+  .stage.cur .lbl{color:var(--cream)}
+
+  textarea{
+    width:100%; height:96px; background:#15100a; color:var(--cream);
+    border:1px solid var(--line); border-radius:8px; padding:10px; font-size:15px;
+    font-family:inherit; resize:vertical; outline:none;
+  }
+  textarea:focus{border-color:var(--amber)}
+  .hint{color:var(--muted); font-size:12px; margin:6px 2px}
+
+  .btn{
+    background:var(--amber); color:#1d140d; border:none; border-radius:8px;
+    padding:10px 18px; font-size:15px; font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .btn:disabled{opacity:.4; cursor:not-allowed}
+  .btn.ghost{background:transparent; color:var(--cream); border:1px solid var(--line)}
+
+  .tendency{font-size:13px; color:var(--muted); min-height:20px}
+  .tendency b{color:var(--cream)}
+
+  /* result */
+  .result{display:none}
+  .beer-head{display:flex; align-items:center; gap:12px}
+  .beer-head .glass{font-size:40px}
+  .beer-name{font-size:20px; font-weight:700}
+  .stars{color:var(--amber); letter-spacing:2px}
+  .tags{margin-top:4px}
+  .tag{display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:1px 9px; font-size:12px; margin-right:4px}
+  .why{margin-top:12px; background:#15100a; border-radius:8px; padding:10px 12px}
+  .why .h{color:var(--amber); font-size:13px; margin-bottom:6px}
+  .why ul{margin:0; padding-left:18px}
+  .why li{font-size:14px; margin-bottom:3px}
+  .why .verdict{margin-top:8px; font-weight:700; color:var(--cream)}
+
+  /* guest */
+  .guest{display:none; align-items:flex-start; gap:12px; margin-top:12px}
+  .guest .av{font-size:34px}
+  .guest .gname{font-weight:700}
+  .guest .grole{color:var(--muted); font-size:12px}
+  .guest .line{background:#15100a; border-radius:8px; padding:8px 12px; margin-top:4px; font-size:14px}
+  .guest .gift{color:var(--good); font-size:12px; margin-top:4px}
+
+  /* collection */
+  .pokedex{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .slot{background:var(--panel2); border:1px dashed var(--line); border-radius:8px; padding:10px; text-align:center; min-height:64px}
+  .slot.locked{color:var(--muted); opacity:.6}
+  .slot.unlocked{border-style:solid; border-color:var(--amber)}
+  .slot .sw{width:26px; height:26px; border-radius:50%; margin:0 auto 4px; background:#3a2a18}
+  .slot .nm{font-size:12px}
+  .new-badge{color:var(--good); font-size:11px; display:block}
+
+  .pulse{animation:pulse .6s ease}
+  @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🍺 键盘酒馆 · 概念原型</h1>
+  <div class="sub">在下面随便打字——写代码、聊天、贴一段你正在写的东西。你的输入节奏会酿成一杯酒。看看这杯酒是否真的「像」你刚才的打字。</div>
+
+  <!-- live stats -->
+  <div class="card">
+    <div class="stats" id="stats">
+      <div class="stat"><span class="lab">字母</span><b id="s-letter">0</b></div>
+      <div class="stat"><span class="lab">数字</span><b id="s-digit">0</b></div>
+      <div class="stat"><span class="lab">符号</span><b id="s-symbol">0</b></div>
+      <div class="stat"><span class="lab">节奏</span><b id="s-pace">—</b></div>
+      <div class="stat"><span class="lab">连续段</span><b id="s-burst">0</b></div>
+      <div class="stat"><span class="lab">停顿</span><b id="s-pause">0</b></div>
+    </div>
+  </div>
+
+  <!-- vat + input -->
+  <div class="card">
+    <div class="vat-wrap">
+      <div class="vat"><div class="liquid" id="liquid"></div></div>
+      <div class="stages">
+        <div class="stage" id="stg0"><div class="fill"></div><div class="lbl">麦芽</div></div>
+        <div class="stage" id="stg1"><div class="fill"></div><div class="lbl">糖化/煮沸</div></div>
+        <div class="stage" id="stg2"><div class="fill"></div><div class="lbl">发酵</div></div>
+      </div>
+    </div>
+    <div class="tendency" id="tendency" style="margin:10px 2px 6px">开始打字，酒液会在这里慢慢成形……</div>
+    <textarea id="input" placeholder="在这里打字……（随便写什么，或粘贴一段你正在编辑的文字）"></textarea>
+    <div class="hint">提示：试试用不同风格多酿几杯——纯字母 / 多数字 / 连续快打 / 短促带停顿，看看酒怎么变。</div>
+    <div style="margin-top:8px; display:flex; gap:8px">
+      <button class="btn" id="complete">完成酿造 ▶</button>
+      <button class="btn ghost" id="again" disabled>再酿一杯 ↻</button>
+    </div>
+  </div>
+
+  <!-- result -->
+  <div class="card result" id="result">
+    <div class="beer-head">
+      <div class="glass" id="r-glass">🍺</div>
+      <div>
+        <div class="beer-name" id="r-name">—</div>
+        <div class="stars" id="r-stars">★★★★★</div>
+        <div class="tags" id="r-tags"></div>
+      </div>
+    </div>
+    <div class="why">
+      <div class="h">为什么是它</div>
+      <ul id="r-reasons"></ul>
+      <div class="verdict" id="r-verdict"></div>
+    </div>
+    <div class="guest" id="guest">
+      <div class="av" id="g-av"></div>
+      <div>
+        <span class="gname" id="g-name"></span> <span class="grole" id="g-role"></span>
+        <div class="line" id="g-line"></div>
+        <div class="gift" id="g-gift"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- collection -->
+  <div class="card">
+    <div class="sub" style="margin:0 0 8px">酒谱图鉴（首次酿出会解锁）</div>
+    <div class="pokedex" id="pokedex"></div>
+  </div>
+</div>
+
+<script>
+// ===== CONFIG =====
+const TARGET_KEYS = 36, KEYS_PER_STAGE = TARGET_KEYS/3;
+const DEFAULT_BASELINE_MS = 220, PAUSE_MS = 380, BURST_MS = 150;
+const FALLBACK_SIM = 0.40;
+
+const BEERS = [
+  {id:'lager',name:'酒馆基础拉格',roast:.10,body:.30,bitterness:.20,aroma:.20,fruit:.10,nut:.10,spice:.10,warm:.30,tags:['清爽','淡色'],color:'#f1c95b'},
+  {id:'pale', name:'黄昏淡艾尔',  roast:.30,body:.60,bitterness:.40,aroma:.40,fruit:.30,nut:.20,spice:.20,warm:.70,tags:['麦香','温暖'],color:'#d99a3e'},
+  {id:'ipa',  name:'花园花香IPA',roast:.25,body:.50,bitterness:.82,aroma:.82,fruit:.30,nut:.20,spice:.30,warm:.60,tags:['苦','花香'],color:'#caa83c'},
+  {id:'amber',name:'焦糖琥珀艾尔',roast:.60,body:.60,bitterness:.40,aroma:.40,fruit:.30,nut:.55,spice:.20,warm:.60,tags:['焦糖','圆润'],color:'#b5722e'},
+  {id:'stout',name:'夜班坚果世涛',roast:.90,body:.80,bitterness:.50,aroma:.30,fruit:.20,nut:.85,spice:.20,warm:.50,tags:['深色','坚果'],color:'#4a2a17'},
+  {id:'wheat',name:'果园小麦啤',  roast:.20,body:.50,bitterness:.20,aroma:.55,fruit:.85,nut:.20,spice:.35,warm:.72,tags:['果香','柔和'],color:'#e3b964'},
+];
+const EXPERIMENT = {id:'exp',name:'酒馆实验酒',tags:['实验','未知'],color:'#9a7b5a'};
+const FEAT = ['roast','body','bitterness','aroma','fruit','nut','spice','warm'];
+const W = {roast:1.3,body:1.0,bitterness:1.2,aroma:1.0,fruit:0.9,nut:0.9,spice:0.8,warm:1.1};
+const MAXDIST = FEAT.reduce((s,f)=>s+W[f],0);
+
+const GUESTS = [
+  {id:'acan',name:'阿灿',role:'夜班工人',emoji:'👷',prefers:['清爽','淡色','柔和'],love:'哈——就是这种收工后来一杯的感觉。清爽，不抢戏。',like:'嗯，挺顺口的。再来一杯也行。',neutral:'还行吧，能喝。',dislike:'这杯有点冲，不太像我。',gift:'蜂蜜'},
+  {id:'lan', name:'小岚',role:'会计',    emoji:'🧮',prefers:['焦糖','坚果','深色','圆润'],love:'这焦糖味儿对极了，像我加班算账时手里那杯。',like:'不错，有厚度。',neutral:'一般般吧。',dislike:'太淡了，没劲儿。',gift:'咖啡豆'},
+  {id:'mu',  name:'阿木',role:'程序员',  emoji:'💻',prefers:['苦','花香','麦香'],love:'苦得正好，花香留在舌根——这就是我写代码到凌晨想要的那口。',like:'嗯，有点意思。',neutral:'还行，能喝。',dislike:'不够劲，写不动代码。',gift:'柑橘皮'},
+];
+
+// ===== STATE =====
+let S = freshState();
+function freshState(){
+  return {letters:0,digits:0,symbols:0,bursts:0,pauses:0,
+          lastT:0,intervals:[],burstRun:0,history:[]}; // history = prior brew mean intervals
+}
+let brewing = true, completed = false;
+let discovered = new Set();
+
+const el = id=>document.getElementById(id);
+
+// ===== INPUT =====
+el('input').addEventListener('keydown', e=>{
+  if(!brewing) return;
+  if(e.repeat) return; // 折损长按重复（GDD 5.5 防刷）
+  const k = e.key;
+  if(k.length!==1) return; // 仅可打印单字符；忽略 Shift/Ctrl/方向等
+  const now = performance.now();
+  if(S.lastT>0){
+    const dt = now - S.lastT;
+    S.intervals.push(dt);
+    if(dt > PAUSE_MS){ S.pauses++; S.burstRun=0; }
+    else if(dt < BURST_MS){ S.burstRun++; if(S.burstRun===3) S.bursts++; }
+    else { S.burstRun=0; }
+  }
+  S.lastT = now;
+  if(/[a-zA-Z]/.test(k)) S.letters++;
+  else if(/[0-9]/.test(k)) S.digits++;
+  else S.symbols++; // 含标点、空格等可打印符号
+  updateLive();
+  if(counted() >= TARGET_KEYS) doComplete();
+});
+
+function counted(){ return S.letters+S.digits+S.symbols; }
+
+function baselineMs(){
+  if(S.history.length===0) return {ms:DEFAULT_BASELINE_MS, ready:false};
+  const all = S.history.flat();
+  const ms = all.reduce((a,b)=>a+b,0)/all.length;
+  return {ms, ready:true};
+}
+function meanInterval(){ return S.intervals.length? S.intervals.reduce((a,b)=>a+b,0)/S.intervals.length : DEFAULT_BASELINE_MS; }
+
+// ===== FLAVOR =====
+function computeFlavor(){
+  const total = Math.max(1, counted());
+  const lr = S.letters/total, dr = S.digits/total, sr = S.symbols/total;
+  const active = counted();
+  const burstKeys = S.intervals.filter(d=>d<BURST_MS).length+1;
+  const burstRatio = active? Math.min(1, burstKeys/active) : 0;
+  const pauseRatio = active? Math.min(1, S.pauses/Math.max(1,active/6)) : 0;
+  const b = baselineMs();
+  const curMean = meanInterval();
+  let warm = 0.5;
+  if(b.ready){ warm = clamp(0.5 + (b.ms - curMean)/b.ms, 0, 1); }
+  const completion = Math.min(1, active/TARGET_KEYS);
+
+  // 三阶段映射（GDD 5.3）
+  const roast   = clamp(dr*1.6, 0, 1);              // 数字→烘烤/深色
+  const body    = clamp(lr*1.1, 0, 1);              // 字母→酒体
+  const spice   = clamp(sr*1.8, 0, 1);              // 符号→香料/草本
+  const bitterness = clamp(burstRatio*1.3, 0, 1);   // 连续→苦
+  const aroma   = clamp(pauseRatio*1.3, 0, 1);      // 停顿→香
+  const fruit   = clamp(lr*1.0 + (warm>0.6?0.15:0), 0, 1); // 字母+暖→果香
+  const nut     = clamp(dr*1.1, 0, 1);              // 数字→坚果/焦糖
+
+  const vec = {roast,body,bitterness,aroma,fruit,nut,spice,warm};
+  return {vec, lr, dr, sr, burstRatio, pauseRatio, warm, completion, active, baselineReady:b.ready};
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+function matchBeer(vec){
+  let best=null, bestDist=1e9;
+  for(const beer of BEERS){
+    let d=0;
+    for(const f of FEAT) d += W[f]*Math.abs(vec[f]-beer[f]);
+    if(d<bestDist){bestDist=d; best=beer;}
+  }
+  const sim = 1 - bestDist/MAXDIST;
+  return {beer:best, sim};
+}
+
+// ===== LIVE =====
+function updateLive(){
+  el('s-letter').textContent = S.letters;
+  el('s-digit').textContent  = S.digits;
+  el('s-symbol').textContent = S.symbols;
+  el('s-burst').textContent  = S.bursts;
+  el('s-pause').textContent  = S.pauses;
+  const b = baselineMs(); const cm = meanInterval();
+  let pace='—';
+  if(counted()>4 && S.intervals.length>2){
+    if(!b.ready) pace='建立基线…';
+    else{ const r=cm/b.ms; pace = r<0.75?'偏快': r>1.3?'偏慢':'平稳'; }
+  }
+  el('s-pace').textContent = pace;
+
+  // 进度 + 阶段
+  const c = counted();
+  for(let i=0;i<3;i++){
+    const seg = Math.max(0, Math.min(KEYS_PER_STAGE, c - i*KEYS_PER_STAGE));
+    el('stg'+i).querySelector('.fill').style.width = (seg/KEYS_PER_STAGE*100)+'%';
+    el('stg'+i).classList.toggle('cur', c>=i*KEYS_PER_STAGE && c<(i+1)*KEYS_PER_STAGE);
+  }
+  // 酒液高度 + 颜色
+  const f = computeFlavor();
+  el('liquid').style.height = (15 + f.completion*70)+'%';
+  el('liquid').style.background = lerpColor('#f1c95b','#4a2a17', f.vec.roast);
+  // 倾向文字（实时强化可读性）
+  if(counted()===0){
+    el('tendency').innerHTML = '开始打字，酒液会在这里慢慢成形……';
+  } else {
+    const top = topReasons(f,1);
+    const m = matchBeer(f.vec);
+    el('tendency').innerHTML = `当前倾向：<b>${top[0]||'—'}</b> · 最接近 <b>${m.beer.name}</b>（${Math.round(m.sim*100)}%）`;
+  }
+}
+
+// ===== REASONS (the legibility device) =====
+function topReasons(f, n){
+  const r = [];
+  const pct = x=>Math.round(x*100);
+  if(f.dr>0.18) r.push({s:f.dr, t:`数字占比 ${pct(f.dr)}%（偏高）→ 烘烤度上升，焦糖 / 坚果 / 深色`});
+  if(f.dr>0.05 && f.dr<=0.18) r.push({s:f.dr*0.5, t:`数字占比 ${pct(f.dr)}% → 轻微烘烤味`});
+  if(f.lr>0.82) r.push({s:f.lr-0.7, t:`字母占比 ${pct(f.lr)}%（很高）→ 果香通道充能，水果 / 酯香`});
+  if(f.sr>0.22) r.push({s:f.sr, t:`符号占比 ${pct(f.sr)}%（偏高）→ 香料 / 草本 / 野性`});
+  if(f.burstRatio>0.45) r.push({s:f.burstRatio, t:`连续输入多、停顿少（${S.bursts} 段）→ 苦度倾向上升`});
+  if(f.pauseRatio>0.5) r.push({s:f.pauseRatio*0.8, t:`短促输入 + 频繁停顿（${S.pauses} 次）→ 香气保留`});
+  if(f.warm>0.66) r.push({s:f.warm-0.5, t:`节奏比你平均快 → 暖发酵，艾尔 / 活跃 / 果香`});
+  else if(f.warm<0.34) r.push({s:0.5-f.warm, t:`节奏比你平均慢 → 冷发酵，拉格 / 干净 / 清爽`});
+  if(!f.baselineReady && counted()>4) r.push({s:0.1, t:`（首杯正在建立你的节奏基线）`});
+  if(f.completion<0.35 && counted()>0) r.push({s:0.15, t:`输入较少 → 走向稳定、清淡的基础酒`});
+  r.sort((a,b)=>b.s-a.s);
+  return r.slice(0,n).map(x=>x.t);
+}
+
+// ===== COMPLETE =====
+function doComplete(){
+  if(completed) return;
+  completed = true; brewing = false;
+  const f = computeFlavor();
+  const m = matchBeer(f.vec);
+  const useFallback = m.sim < FALLBACK_SIM;
+  const beer = useFallback ? {...EXPERIMENT, sim:m.sim} : {...m.beer, sim:m.sim};
+
+  // quality (GDD 14.2, 简化)
+  const noise = (Math.random()*6-3);
+  const quality = clamp(Math.round(45 + 25*m.sim + 15*f.completion + noise), 20, 95);
+  const stars = quality>=85?5: quality>=75?4: quality>=65?3: quality>=55?2:1;
+
+  // guest
+  const g = pickGuest(beer, stars);
+
+  // record baseline history
+  if(S.intervals.length>3) S.history.push(S.intervals.slice());
+
+  // render
+  el('r-glass').textContent = '🍺';
+  el('r-name').textContent = beer.name;
+  el('r-stars').textContent = '★'.repeat(stars)+'☆'.repeat(5-stars)+`  ${quality}分`;
+  el('r-tags').innerHTML = beer.tags.map(t=>`<span class="tag">${t}</span>`).join('')
+    + (useFallback? `<span class="tag" style="border-color:var(--bad)">相似度低</span>`:'');
+  const reasons = topReasons(f,3);
+  el('r-reasons').innerHTML = reasons.map(t=>`<li>${t}</li>`).join('');
+  el('r-verdict').textContent = `⇒ 最接近：${m.beer.name}（相似度 ${Math.round(m.sim*100)}%）${useFallback?' · 但差距较大，算作实验酒':''}`;
+  el('liquid').style.background = beer.color;
+
+  // guest render
+  el('g-av').textContent = g.emoji;
+  el('g-name').textContent = g.name;
+  el('g-role').textContent = '· '+g.role;
+  el('g-line').textContent = g.line;
+  el('g-gift').textContent = g.mood==='love' ? `🎁 他留下了一点东西：${g.gift}（解锁线索）` : '';
+  el('guest').style.display = g.hide?'none':'flex';
+
+  el('result').style.display='block';
+  el('result').classList.add('pulse');
+
+  // collection
+  const isNew = !useFallback && !discovered.has(beer.id);
+  if(!useFallback) discovered.add(beer.id);
+  renderPokedex(beer.id, isNew);
+
+  el('complete').disabled = true;
+  el('again').disabled = false;
+  el('input').readOnly = true;
+}
+
+function pickGuest(beer, stars){
+  let best=GUESTS[0], bestScore=-1;
+  for(const g of GUESTS){
+    let sc=0;
+    for(const t of beer.tags){
+      const idx=g.prefers.indexOf(t);
+      if(idx>=0) sc += (g.prefers.length - idx);
+    }
+    if(sc>bestScore){bestScore=sc; best=g;}
+  }
+  const maxPossible = 5; // 约 2 个偏好标签的满分
+  const aff = bestScore/maxPossible;
+  let mood='neutral';
+  if(beer.id==='exp' || bestScore===0) mood = stars>=3?'neutral':'dislike';
+  else if(aff>=0.6 && stars>=4) mood='love';
+  else if(aff>=0.3 || stars>=3) mood='like';
+  else mood='neutral';
+  const line = best[mood];
+  return {...best, mood, line, hide:false};
+}
+
+function renderPokedex(highlightId, isNew){
+  el('pokedex').innerHTML = BEERS.map(b=>{
+    const has = discovered.has(b.id);
+    const hi = has && b.id===highlightId && isNew;
+    return `<div class="slot ${has?'unlocked':'locked'}">
+      <div class="sw" style="${has?`background:${b.color}`:''}"></div>
+      <div class="nm">${has?b.name:'？'}</div>
+      ${hi?'<span class="new-badge">✦ 新发现！</span>':''}
+    </div>`;
+  }).join('');
+}
+
+// ===== RESET =====
+el('again').addEventListener('click', ()=>{
+  S = freshState();
+  brewing = true; completed = false;
+  el('input').value=''; el('input').readOnly=false;
+  el('result').style.display='none';
+  el('guest').style.display='none';
+  el('complete').disabled=false; el('again').disabled=true;
+  el('liquid').style.height='30%'; el('liquid').style.background='#f1c95b';
+  for(let i=0;i<3;i++){ el('stg'+i).querySelector('.fill').style.width='0%'; }
+  el('tendency').textContent='开始打字，酒液会在这里慢慢成形……';
+  renderPokedex(null,false);
+  el('input').focus();
+});
+el('complete').addEventListener('click', ()=>{ if(counted()>=0) doComplete(); });
+
+// ===== color util =====
+function lerpColor(a,b,t){
+  const ah=parseInt(a.slice(1),16), bh=parseInt(b.slice(1),16);
+  const ar=(ah>>16)&255, ag=(ah>>8)&255, ab2=ah&255;
+  const br=(bh>>16)&255, bg=(bh>>8)&255, bb2=bh&255;
+  const r=Math.round(ar+(br-ar)*t), g=Math.round(ag+(bg-ag)*t), bl=Math.round(ab2+(bb2-ab2)*t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+// init
+renderPokedex(null,false);
+el('input').focus();
+</script>
+</body>
+</html>
