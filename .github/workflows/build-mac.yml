@@ -1,0 +1,59 @@
+name: Build macOS app
+
+# 触发：手动（Actions 页面点 Run workflow）或推送构建相关文件到 main
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'prototypes/keyboard-tavern-concept/companion.py'
+      - 'requirements.txt'
+      - '.github/workflows/build-mac.yml'
+
+jobs:
+  build-mac:
+    # macos-13 = Intel x86_64：产物在 Intel 原生跑、Apple Silicon 经 Rosetta 也能跑，兼容最广。
+    # 若伙伴确定是 Apple Silicon 且想要原生 arm64，把这里改成 macos-14。
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .app
+        working-directory: prototypes/keyboard-tavern-concept
+        run: |
+          pyinstaller --noconfirm --windowed \
+            --name "HitTheBeer" \
+            --osx-bundle-identifier com.junko.hitthebeer \
+            --collect-all pynput \
+            --collect-all PyQt5 \
+            companion.py
+
+      - name: Ad-hoc sign（让它能被加入「辅助功能」列表）
+        working-directory: prototypes/keyboard-tavern-concept
+        run: |
+          codesign --force --deep --sign - "dist/HitTheBeer.app" || true
+
+      - name: 打包成 zip（含给伙伴的说明）
+        working-directory: prototypes/keyboard-tavern-concept
+        run: |
+          rm -rf pkg && mkdir pkg
+          cp -R "dist/HitTheBeer.app" pkg/
+          cp README-partner.md "pkg/先读我.md"
+          ditto -c -k --keepParent pkg HitTheBeer-mac.zip
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: HitTheBeer-mac
+          path: prototypes/keyboard-tavern-concept/HitTheBeer-mac.zip
+          retention-days: 30
