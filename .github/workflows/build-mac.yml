@@ -15,12 +15,13 @@ jobs:
     # macos-13 = Intel x86_64：产物在 Intel 原生跑、Apple Silicon 经 Rosetta 也能跑，兼容最广。
     # 若伙伴确定是 Apple Silicon 且想要原生 arm64，把这里改成 macos-14。
     runs-on: macos-13
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'   # 3.11：PyQt5 有 cp311 macOS 预编译 wheel，避免 pip 源码编译卡死
 
       - name: Install dependencies
         run: |
@@ -31,11 +32,10 @@ jobs:
       - name: Build .app
         working-directory: prototypes/keyboard-tavern-concept
         run: |
-          pyinstaller --noconfirm --windowed \
+          pyinstaller --noconfirm --clean --windowed \
             --name "HitTheBeer" \
             --osx-bundle-identifier com.junko.hitthebeer \
             --collect-all pynput \
-            --collect-all PyQt5 \
             companion.py
 
       - name: Ad-hoc sign（让它能被加入「辅助功能」列表）
