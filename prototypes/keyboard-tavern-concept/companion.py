@@ -5,10 +5,15 @@
 # Run:  python companion.py     (needs: pip install pynput PyQt5)
 # Note: pynput 是系统级键盘钩子，杀毒软件可能误报；原始字符即时丢弃，仅留聚合值（GDD 17.4）。
 
-import sys, time, threading, random, math
+import sys, time, threading, random, math, os
 from PyQt5.QtCore import Qt, QTimer, QRectF
 from PyQt5.QtGui import QPainter, QColor, QBrush, QPen, QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout
+# Tell pynput which backend to load before its package is imported. This is
+# required for a frozen Windows executable, where dynamic backend discovery is
+# not reliable.
+if sys.platform == 'win32':
+    os.environ.setdefault('PYNPUT_BACKEND', 'win32')
 from pynput import keyboard
 
 # ============================ CONFIG ============================
